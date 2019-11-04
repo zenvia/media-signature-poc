@@ -24,16 +24,15 @@ function signatureVerify(req, res, next) {
 
   // parse signature header
   const data = sigHeader
-    .split(',')
+    .split(',', 6)
     .map(i => {
       const [ name, value ] = i.trim().split('=');
       return { name, value };
     });
   
   // check timestamp
-  const timestampStr = data
-    .filter( i => i.name==='t' )  // filter for timestamp fields
-    .map(i => i.value)[0];        // get first timestamp value
+  const timestampData = data.find(i => i.name==='t'); // get first timestamp
+  const timestampStr = timestampData ? timestampData.value : undefined;
   if (!timestampStr) {
     const err = new Error('Signature Error: No timestamp field');
     err.status = 400;
@@ -41,7 +40,6 @@ function signatureVerify(req, res, next) {
   }
   const diffMs = Date.now() - parseInt(timestampStr) * 1000;
   const diffMinutes = diffMs / (1000*60);
-  console.log(`diffMinutes: ${diffMinutes}`);
   if (diffMinutes > TIMESTAMP_TOLERANCE_MIN || diffMinutes < -TIMESTAMP_TOLERANCE_MIN) {
     const err = new Error('Signature Error: Timestamp out of tolerance');
     err.status = 400;
@@ -53,10 +51,7 @@ function signatureVerify(req, res, next) {
   hmac.update(`${timestampStr}.`)
   hmac.update(req.rawBodyBuf);
   const signature = hmac.digest('hex');
-  const hasValidSignature = data
-    .filter( i => i.name==='s' )  // filter for signature fields
-    .map(i => i.value)            // get signature value
-    .some(s => s===signature);    // find for some valid signature
+  const hasValidSignature = data.some(i => i.name==='s' && i.value===signature); // find for some valid signature
   if (!hasValidSignature) {
     const err = new Error('Signature Error: No valid signature found');
     err.status = 400;
