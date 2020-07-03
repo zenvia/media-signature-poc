@@ -7,31 +7,26 @@ const request = require('request');
 const timestamp = Math.floor(Date.now() / 1000);
 const timestampStr = timestamp.toString();
 
-// body
-const body = {};
-/*const body = {
-  activation: {
-    challenge: 'some text'
-  }
-};*/
-const bodyStr = JSON.stringify(body);
+const uri = 'http://localhost:3000/media';
 
 // signature
 const hmac = crypto.createHmac('sha256', process.env.WEBHOOK_SECRET);
-hmac.update(`${timestampStr}.${bodyStr}`);
+hmac.update(`${timestampStr}.${uri}`);
 const signature = hmac.digest('hex');
 
 // request
 request({
-  method: 'POST',
-  uri: 'http://localhost:3000/webhook',
+  method: 'GET',
+  uri,
   headers: {
-    'content-type': 'application/json',
     'x-zenapi-signature': `t=${timestampStr}, s=${signature}`
   },
-  body: bodyStr,
 }, (error, response, body) => {
+  const statusCode = response && response.statusCode;
   console.log('error:', error); // Print the error if one occurred
-  console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
-  console.log('body:', body); // Print the body
+  console.log('statusCode:', statusCode); // Print the response status code if a response was received
+  console.log('content-type:', response && response.headers["content-type"]); // Print the Content-Type
+  if (statusCode !== 200) {
+    console.log('body:', body); // Print the body
+  }
 });
